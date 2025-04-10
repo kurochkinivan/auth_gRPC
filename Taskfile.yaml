@@ -1,0 +1,30 @@
+version: '3'
+
+tasks:
+  sso:
+    aliases:
+      - run_sso
+    desc: "start sso application"
+    cmds:
+      - go run cmd/sso/main.go --config=./config/local.yaml
+  
+  docker:
+    aliases:
+      - run_docker
+    desc: "create docker container"
+    cmds:
+      - docker compose up -d
+
+  migrate:
+    aliases:
+      - run_migrations
+    desc: "run migrations"
+    cmds:
+      - go run cmd/migrator/main.go --migration_path=migrations --migration_table=migrations --username=postgres --password=postgres --host=localhost --port=5432 --db=sso
+  
+  migrate_test:
+    aliases:
+      - run_test_migrations
+    desc: "run test migrations"
+    cmds:
+      - go run cmd/migrator/main.go --migration_path=tests/migrations --migration_table=migrations_test --username=postgres --password=postgres --host=localhost --port=5432 --db=sso

@@ -1,0 +1,16 @@
+env: "local" # local | dev | prod
+
+secret: gWnf9LuEMFTiBrMMzxg9o4j7B-kMANgivHwJXtCWVaq6_MBuEihJzko-etf89dR0Z46jKQulirabbvLZyVhCrw
+token_ttl: 1h
+
+grpc:
+  host: 'localhost'
+  port: '44044'
+  timeout: 10h
+
+postgresql:
+  host: 'localhost'
+  port: '5432'
+  username: 'postgres'
+  password: 'postgres'
+  db: 'sso'
