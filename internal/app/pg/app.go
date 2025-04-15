@@ -8,8 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kurochkinivan/auth/internal/config"
-	"github.com/kurochkinivan/auth/internal/lib/sl"
-	"github.com/kurochkinivan/auth/pkg/pgclient"
+	pgclient "github.com/kurochkinivan/pgClient"
 )
 
 type App struct {
@@ -55,15 +54,9 @@ func (a *App) Run(ctx context.Context, maxAttempts int, delay time.Duration) err
 		slog.String("db", a.db),
 	)
 
-	err := doWithAttempts(func() error {
-		err := a.Pool.Ping(ctx)
-		if err != nil {
-			return err
-		}
-		return nil
-	}, ctx, log, maxAttempts, delay)
+	err := pgclient.PingWithAttempts(ctx, log, a.Pool, maxAttempts, delay)
 	if err != nil {
-		return fmt.Errorf("all attempts expired, failed to connect to postgresql: %w", err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
 	log.Info("connection to postgresql database is established")
@@ -81,32 +74,4 @@ func (a *App) Stop() {
 		)
 
 	a.Pool.Close()
-}
-
-func doWithAttempts(f func() error, ctx context.Context, log *slog.Logger, attempts int, delay time.Duration) error {
-	var err error
-	for i := range attempts {
-		err = f()
-		if err == nil {
-			return nil
-		}
-
-		if i == attempts-1 {
-			break
-		}
-
-		log.Error("failed to ping to postgresql, retrying...", sl.Err(err))
-		t := time.NewTimer(delay)
-
-		select {
-		case <-t.C:
-			continue
-		case <-ctx.Done():
-			log.Error("context is cancelled, stopping retries")
-			return fmt.Errorf("context is cancelled, stopping")
-		}
-	}
-
-	log.Error("all attempts expired, failed to connect to postgresql", sl.Err(err))
-	return fmt.Errorf("all attempts expired, failed to connect to postgresql: %w", err)
 }
