@@ -72,6 +72,8 @@ func (r *Repository) User(ctx context.Context, email string) (*entity.User, erro
 			"id",
 			"email",
 			"password",
+			"created_at",
+			"updated_at",
 		).
 		From(TableUsers).
 		Where(
@@ -87,6 +89,8 @@ func (r *Repository) User(ctx context.Context, email string) (*entity.User, erro
 		&user.ID,
 		&user.Email,
 		&user.PassHash,
+		&user.CreatedAt,
+		&user.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

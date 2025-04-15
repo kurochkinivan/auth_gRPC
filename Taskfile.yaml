@@ -4,27 +4,41 @@ tasks:
   auth:
     aliases:
       - run_auth
-    desc: "start sso application"
+    desc: "start auth application"
     cmds:
-      - go run cmd/sso/main.go --config=./config/local.yaml
+      - go run cmd/auth/main.go --config=./config/local.yaml
   
-  docker:
+  docker_up:
     aliases:
-      - run_docker
+      - dk_up
     desc: "create docker container"
     cmds:
       - docker compose up -d
 
-  migrate:
+  docker_down:
     aliases:
-      - run_migrations
-    desc: "run migrations"
+      - dk_down
+    desc: "remove docker container"
     cmds:
-      - go run cmd/migrator/main.go --migration_path=migrations --migration_table=migrations --username=postgres --password=postgres --host=localhost --port=5432 --db=sso
+      - docker compose down
+
+  migrate_up:
+    aliases:
+      - m_up
+    desc: "migrate up"
+    cmds:
+      - go run cmd/migrator/main.go --type=up --migration_path=migrations --migration_table=migrations --username=postgres --password=postgres --host=localhost --port=5432 --db=auth
   
+  migrate_down:
+    aliases:
+      - m_down
+    desc: "migrate down"
+    cmds:
+      - go run cmd/migrator/main.go --type=down --migration_path=migrations --migration_table=migrations --username=postgres --password=postgres --host=localhost --port=5432 --db=auth
+
   migrate_test:
     aliases:
       - run_test_migrations
     desc: "run test migrations"
     cmds:
-      - go run cmd/migrator/main.go --migration_path=tests/migrations --migration_table=migrations_test --username=postgres --password=postgres --host=localhost --port=5432 --db=sso
+      - go run cmd/migrator/main.go --migration_path=tests/migrations --migration_table=migrations_test --username=postgres --password=postgres --host=localhost --port=5432 --db=auth

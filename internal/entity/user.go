@@ -1,9 +1,15 @@
 package entity
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type User struct {
-	ID       uuid.UUID
-	Email    string
-	PassHash []byte
+	ID        uuid.UUID
+	Email     string
+	PassHash  []byte
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
