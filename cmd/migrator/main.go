@@ -14,45 +14,47 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
+const (
+	TypeUP   = "up"
+	TypeDOWN = "down"
+)
+
+type Flags struct {
+	MigrationType   string
+	MigrationsPath  string
+	MigrationsTable string
+	Username        string
+	Password        string
+	Host            string
+	Port            string
+	DB              string
+}
+
 func main() {
-	var username, password, host, port, db string
-	var migrationsPath, migrationsTable string
-
-	flag.StringVar(&migrationsPath, "migration_path", "", "path to migrations")
-	flag.StringVar(&migrationsTable, "migration_table", "migrations", "name of migrations table")
-	flag.StringVar(&username, "username", "", "username")
-	flag.StringVar(&password, "password", "", "password")
-	flag.StringVar(&host, "host", "127.0.0.1", "host")
-	flag.StringVar(&port, "port", "5432", "port")
-	flag.StringVar(&db, "db", "", "db name")
-	flag.Parse()
-
+	flags := parseFlags()
 	validate := validator.New(validator.WithRequiredStructEnabled())
-	validateMigrationsPath(validate, migrationsPath)
-	validateHost(validate, host)
-	validateRequired(validate, migrationsTable)
-	validateRequired(validate, username)
-	validateRequired(validate, password)
-	validateRequired(validate, port)
-	validateRequired(validate, db)
+	validateFlags(validate, flags)
 
-	databaseURL := &url.URL{
-		Scheme:   "postgresql",
-		User:     url.UserPassword(username, password),
-		Host:     net.JoinHostPort(host, port),
-		Path:     db,
-		RawQuery: "sslmode=disable",
-	}
+	databaseURL := buildDatabaseURL(flags)
 
-	m, err := migrate.New(
-		fmt.Sprintf("file://%s", migrationsPath),
-		databaseURL.String(),
+	migrator, err := migrate.New(
+		fmt.Sprintf("file://%s", flags.MigrationsPath),
+		databaseURL,
 	)
 	if err != nil {
 		panic(err)
 	}
 
-	if err := m.Up(); err != nil {
+	switch flags.MigrationType {
+	case TypeUP:
+		err = migrator.Up()
+	case TypeDOWN:
+		err = migrator.Down()
+	default:
+		panic("unknown migration type")
+	}
+
+	if err != nil {
 		if errors.Is(err, migrate.ErrNoChange) {
 			fmt.Println("no migrations to apply")
 			return
@@ -63,49 +65,65 @@ func main() {
 	fmt.Println("migrations applied successfully")
 }
 
-func validateMigrationsPath(validate *validator.Validate, migrationsPath string) {
-	err := validate.Var(migrationsPath, "required,dirpath")
-	if err != nil {
-		var validationErrs validator.ValidationErrors
-		if errors.As(err, &validationErrs) {
-			for _, e := range validationErrs {
-				if e.Tag() == "required" {
-					panic("migration path is required")
-				}
-				if e.Tag() == "dirpath" {
-					panic("invalid migration path")
-				}
-			}
-		}
-		panic(err)
-	}
+func parseFlags() *Flags {
+	flags := &Flags{}
+	flag.StringVar(&flags.MigrationType, "type", TypeUP, "migration type: down/up")
+	flag.StringVar(&flags.MigrationsPath, "migration_path", "", "path to migrations")
+	flag.StringVar(&flags.MigrationsTable, "migration_table", "migrations", "name of migrations table")
+	flag.StringVar(&flags.Username, "username", "", "username")
+	flag.StringVar(&flags.Password, "password", "", "password")
+	flag.StringVar(&flags.Host, "host", "127.0.0.1", "host")
+	flag.StringVar(&flags.Port, "port", "5432", "port")
+	flag.StringVar(&flags.DB, "db", "", "db name")
+	flag.Parse()
+	return flags
+}
 
-	if _, err := os.Stat(migrationsPath); os.IsNotExist(err) {
-		panic(err)
+func validateFlags(validate *validator.Validate, f *Flags) {
+	Path(validate, f.MigrationsPath)
+	Host(validate, f.Host)
+	Required(validate, f.MigrationsTable, "migration_table")
+	Required(validate, f.Username, "username")
+	Required(validate, f.Password, "password")
+	Required(validate, f.Port, "port")
+	Required(validate, f.DB, "db")
+}
+
+func Type(validate *validator.Validate, migrationType string) {
+	err := validate.Var(migrationType, "required,oneof=up down")
+	if err != nil {
+		panic("migration_type must be 'up' or 'down'")
 	}
 }
 
-func validateHost(validate *validator.Validate, host string) {
-	err := validate.Var(host, "required,hostname")
-	if err != nil {
-		var validationErrs validator.ValidationErrors
-		if errors.As(err, &validationErrs) {
-			for _, e := range validationErrs {
-				if e.Tag() == "required" {
-					panic("host is required")
-				}
-				if e.Tag() == "hostname" {
-					panic("invalid host")
-				}
-			}
-		}
-		panic(err)
+func Path(validate *validator.Validate, path string) {
+	if err := validate.Var(path, "required"); err != nil {
+		panic("migration_path is required")
+	}
+	if stat, err := os.Stat(path); os.IsNotExist(err) || !stat.IsDir() {
+		panic("invalid migration_path: not a directory or does not exist")
 	}
 }
 
-func validateRequired(validate *validator.Validate, value string) {
-	err := validate.Var(value, "required")
+func Host(validate *validator.Validate, host string) {
+	err := validate.Var(host, "required,hostname|ip")
 	if err != nil {
-		panic(err)
+		panic("invalid host")
 	}
+}
+
+func Required(validate *validator.Validate, value string, name string) {
+	if err := validate.Var(value, "required"); err != nil {
+		panic(fmt.Sprintf("%s is required", name))
+	}
+}
+
+func buildDatabaseURL(f *Flags) string {
+	return (&url.URL{
+		Scheme:   "postgresql",
+		User:     url.UserPassword(f.Username, f.Password),
+		Host:     net.JoinHostPort(f.Host, f.Port),
+		Path:     f.DB,
+		RawQuery: "sslmode=disable",
+	}).String()
 }

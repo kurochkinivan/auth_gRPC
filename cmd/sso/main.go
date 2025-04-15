@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/kurochkinivan/auth/internal/app"
 	"github.com/kurochkinivan/auth/internal/config"
@@ -27,20 +26,14 @@ func main() {
 	defer cancel()
 
 	application := app.New(ctx, log, cfg)
-
-	go application.PostgreSQLApp.MustRun(ctx, 5, 5*time.Second)
-	go application.GRPCApp.MustRun()
+	application.Run(ctx)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
-
 	sig := <-stop
 
 	log.Info("stopping application", slog.String("signal", sig.String()))
-
-	application.GRPCApp.Stop()
-	application.PostgreSQLApp.Stop()
-
+	application.Stop()
 	log.Info("application stopped")
 }
 

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	grpcapp "github.com/kurochkinivan/auth/internal/app/grpc"
 	pgapp "github.com/kurochkinivan/auth/internal/app/pg"
@@ -27,8 +28,18 @@ func New(ctx context.Context, log *slog.Logger, cfg *config.Config) *App {
 	gRPCApp := grpcapp.New(log, cfg.GRPC, authService)
 
 	return &App{
-		GRPCApp: gRPCApp,
+		GRPCApp:       gRPCApp,
 		PostgreSQLApp: pgApp,
-		log:     log,
+		log:           log,
 	}
+}
+
+func (a *App) Run(ctx context.Context) {
+	go a.PostgreSQLApp.MustRun(ctx, 5, 5*time.Second)
+	go a.GRPCApp.MustRun()
+}
+
+func (a *App) Stop() {
+	a.GRPCApp.Stop()
+	a.PostgreSQLApp.Stop()
 }
