@@ -21,7 +21,7 @@ func main() {
 	cfg := config.MustLoad()
 	log := setupLogger(cfg.Env)
 
-	log.Info("starting applciation", slog.String("env", cfg.Env))
+	log.Info("starting application", slog.String("env", cfg.Env))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

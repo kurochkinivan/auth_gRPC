@@ -25,6 +25,10 @@ func New(pool *pgxpool.Pool) *Repository {
 	}
 }
 
+const (
+	TableUsers = "users"
+)
+
 // SaveUser saves user in the database.
 //
 // If user with given email already exists, returns error repository.ErrUserExists.
